@@ -2,6 +2,8 @@
 import paho.mqtt.client as mqtt
 import json
 import time
+# 匯入我們剛剛寫好的 LLM 與資料庫處理模組
+from llm_handler import generate_seal_response
 
 BROKER_ADDRESS = "127.0.0.1"
 BROKER_PORT = 1883
@@ -18,23 +20,36 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 def on_message(client, userdata, msg):
     try:
         data = json.loads(msg.payload.decode("utf-8"))
-        print(f"\n📥 [收到遊客訊息] 主題: {msg.topic}")
-        print(f"👤 遊客 [{data['tourist_id']}] 對 海豹 [{data['seal_id']}] 說: {data['message']}")
+        seal_id = data.get('seal_id')
+        tourist_id = data.get('tourist_id')
+        user_message = data.get('message')
         
-        # 這裡未來會觸發 LLM 思考，並產出回應
-        # 模擬 LLM 思考延遲後回應
-        time.sleep(2)
+        print(f"\n📥 [收到遊客訊息] 主題: {msg.topic}")
+        print(f"👤 遊客 [{tourist_id}] 對 海豹 [{seal_id}] 說: {user_message}")
+        
+        # --- 核心整合區塊 ---
+        print(f"🧠 [AI 思考中] 正在讀取 MongoDB 並呼叫 Gemini...")
+        
+        # 呼叫 LLM 處理邏輯，這裡會自動處理記憶讀寫與 API 呼叫
+        reply_content = generate_seal_response(seal_id, tourist_id, user_message)
+        
+        # 組裝要回傳給 Node.js 的資料
         reply_msg = {
-            "seal_id": data['seal_id'],
-            "content": "噗...因為水溫太舒服了，不想動...噗。"
+            "seal_id": seal_id,
+            "content": reply_content
         }
-        print(f"\n🧠 [AI 思考完畢] 發布回應至 Node.js")
+        
+        print(f"🦭 [AI 回應] {reply_content}")
+        print(f"📢 發布回應至 Node.js (aquarium/seal/chat)")
         client.publish("aquarium/seal/chat", json.dumps(reply_msg, ensure_ascii=False))
+        # --------------------
         
     except json.JSONDecodeError:
         print("❌ 解析 JSON 失敗")
+    except Exception as e:
+        print(f"❌ 處理訊息時發生錯誤: {e}")
 
-# 初始化 MQTT 客戶端 (使用 MQTTv5 協議以支援較新特性)
+# 初始化 MQTT 客戶端
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.on_connect = on_connect
 client.on_message = on_message
@@ -46,18 +61,9 @@ client.connect(BROKER_ADDRESS, BROKER_PORT, 60)
 client.loop_start()
 
 try:
-    # 模擬 World Loop (世界時間流動)
+    # 這裡的 World Loop 先保持輕量，維持程式運行
+    # 未來可以在這裡加入定時檢查海豹體力、觸發下班的腳本
     while True:
-        # 模擬：系統讓海豹「波波」打卡上班
-        status_msg = {
-            "seal_id": "bobo_01",
-            "status": "online",
-            "mood": "sleepy"
-        }
-        print("\n📢 [World Loop] 發布海豹狀態更新")
-        client.publish("aquarium/seal/status", json.dumps(status_msg, ensure_ascii=False))
-        
-        # 每 10 秒觸發一次世界事件
         time.sleep(10)
         
 except KeyboardInterrupt:

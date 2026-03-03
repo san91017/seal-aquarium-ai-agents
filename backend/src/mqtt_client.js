@@ -17,9 +17,9 @@ client.on('connect', () => {
     // 模擬：遊客對名叫「波波」的海豹說話
     setTimeout(() => {
         const touristMsg = {
-            seal_id: 'bobo_01',
+            seal_id: 'seal_01',
             tourist_id: 'user_999',
-            message: '波波，你今天怎麼看起來這麼累？'
+            message: '懶豹，你今天怎麼看起來這麼累？'
         };
         console.log(`\n👤 [遊客發言] 傳送至 Python 引擎:`, touristMsg);
         client.publish('aquarium/tourist/chat', JSON.stringify(touristMsg));
