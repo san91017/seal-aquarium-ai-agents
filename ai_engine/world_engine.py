@@ -46,12 +46,12 @@ seal = {
     "state": {"fatigue": 20, "mood_value": -10} # 昨天被欺負心情不好
 }
 
-# 情況 A: 仇人 Carl 在線上
+# 情況 A: 仇人 seal_02 在線上
 print("情況 A (仇人在線):")
 evaluate_attendance(seal, online_seals_ids=["seal_02"]) 
 # 結果懶豹絕對不會來，因為 SocialPull 是負的，且 BaseRate 極低。
 
-# 情況 B: 好友 Amy 在線上
+# 情況 B: 好友 seal_03 在線上
 print("\n情況 B (好友在線):")
 evaluate_attendance(seal, online_seals_ids=["seal_03"])
-# 結果懶豹有極高機率會來，因為 Amy 提供了 +40 的拉力，克服了不想上班的惰性。
+# 結果懶豹有極高機率會來，因為 seal_03 提供了 +40 的拉力，克服了不想上班的惰性。
