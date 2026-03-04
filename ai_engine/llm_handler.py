@@ -5,6 +5,7 @@ from pymongo import MongoClient
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from memory_extractor import extract_and_store_event
 
 # 載入環境變數中的 API Key
 load_dotenv()
@@ -75,38 +76,13 @@ def generate_seal_response(seal_id: str, tourist_id: str, user_message: str) -> 
     )
     
     assistant_reply = response.text
-
-    # 4. 將對話紀錄寫回 MongoDB
-    now = datetime.now(timezone.utc)
-    new_memory_entries = [
-        {
-            "role": "user",
-            "interlocutor": tourist_id,
-            "content": user_message,
-            "timestamp": now
-        },
-        {
-            "role": "assistant",
-            "interlocutor": tourist_id,
-            "content": assistant_reply,
-            "timestamp": now
-        }
-    ]
-
-    # 利用 MongoDB 的 $push 與 $slice 技巧
-    # 將新對話推入陣列，並確保陣列長度永遠保持在最後 10 筆（避免 Token 消耗過大）
-    seals_collection.update_one(
-        {"seal_id": seal_id},
-        {
-            "$push": {
-                "recent_memories": {
-                    "$each": new_memory_entries,
-                    "$slice": -10 
-                }
-            }
-        }
-    )
-
+    
+    # --- 新增這段：非同步或背景觸發記憶提取 ---
+    full_dialogue = f"遊客 ({tourist_id}): {user_message}\n海豹 ({seal_id}): {assistant_reply}"
+    # 將對話交給記憶提取器壓縮儲存
+    extract_and_store_event(subject_id=tourist_id, object_id=seal_id, context_text=full_dialogue)
+    # ----------------------------------------
+    
     return assistant_reply
 
 # === 簡單測試 ===

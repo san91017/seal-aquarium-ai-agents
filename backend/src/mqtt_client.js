@@ -14,7 +14,7 @@ client.on('connect', () => {
         }
     });
 
-    // 模擬：遊客對名叫「波波」的海豹說話
+    // 模擬：遊客對名叫「懶豹」的海豹說話
     setTimeout(() => {
         const touristMsg = {
             seal_id: 'seal_01',
