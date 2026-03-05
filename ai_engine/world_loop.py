@@ -25,18 +25,27 @@ def evaluate_attendance(seal_data, online_seals_ids):
     state = seal_data.get("state", {})
     social_graph = seal_data.get("social_graph", {})
 
-    base_rate = p.get("C", 50)
+    # 1. BaseRate: 加入保底機制
+    # 原本是 p.get("C", 50)，現在轉換為 35 + (C * 0.3)
+    # 這樣 C=10 的懶海豹會有 38 分底薪，C=90 的勤勞海豹會有 62 分。
+    base_rate = 35 + (p.get("C", 50) * 0.3)
+
+    # 2. MoodFactor (保持不變)
     mood = state.get("mood_value", 0)
     mood_factor = mood * (1 + (p.get("N", 50) / 100.0))
 
+    # 3. SocialPull (保持不變)
     social_pull = 0
     for online_id in online_seals_ids:
         if online_id in social_graph:
             social_pull += (social_graph[online_id] * 0.5)
 
+    # 4. Fatigue (保持不變)
     fatigue = state.get("fatigue", 0)
+
+    # 計算總分 (加入一點無聊/隨機驅動力)
     willingness_score = base_rate + mood_factor + social_pull - fatigue
-    random_variance = random.uniform(-10, 10) + (p.get("E", 50) * 0.1)
+    random_variance = random.uniform(-10, 15) + (p.get("E", 50) * 0.15) 
     
     final_score = willingness_score + random_variance
     return final_score > 50
@@ -78,6 +87,7 @@ def world_tick():
             print(f"⚠️ {seal['name']} 體力透支，強制下班！")
             should_be_online = False
 
+        # 判斷狀態是否「發生改變」 (避免 online -> online 的重複廣播)
         status_changed = (is_online != should_be_online)
         state["is_online"] = should_be_online
 
@@ -87,14 +97,34 @@ def world_tick():
             {"$set": {"state": state}}
         )
 
-        # 3. 如果狀態改變，廣播給前端 (Node.js -> Vue.js)
+        # --- 處理狀態改變的廣播與下班碎碎念 ---
         if status_changed:
-            status_str = "online" if should_be_online else "offline"
-            print(f"📢 廣播狀態改變: {seal['name']} 現在 {status_str} (疲勞值: {fatigue})")
+            if should_be_online:
+                # 上班的趣味廣播
+                status_text = random.choice(["伸了個懶腰，游進了展覽池", "打卡上班！", "噗通一聲跳進水裡", "帶著滿滿活力出現了"])
+            else:
+                # 下班的趣味廣播
+                status_text = random.choice(["覺得累了，偷偷下班溜走", "游回後台睡覺了", "包袱款款下班去", "消失在水草堆中"])
+                
+                # 💡 觸發下班前的碎碎念
+                print(f"💭 [{seal['name']}] 準備下班，正在心裡嘀咕...")
+                monologue_msg = generate_seal_monologue(seal_id)
+                print(f"💬 {seal['name']} 下班前碎碎念: {monologue_msg}")
+                
+                # 廣播自言自語
+                mqtt_client.publish("aquarium/seal/chat", json.dumps({
+                    "seal_id": seal_id,
+                    "target_id": "self",
+                    "content": monologue_msg
+                }, ensure_ascii=False))
+
+            print(f"📢 廣播動態: {seal['name']} {status_text} (疲勞值: {fatigue})")
             
+            # 廣播給前端的 Payload
             payload = {
                 "seal_id": seal_id,
-                "status": status_str,
+                "status_text": status_text,      # 趣味文字
+                "is_online": should_be_online,   # 保留布林值讓前端 Vue.js 容易判斷顯示/隱藏
                 "fatigue": fatigue
             }
             mqtt_client.publish("aquarium/seal/status", json.dumps(payload, ensure_ascii=False))
