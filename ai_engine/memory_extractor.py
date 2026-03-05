@@ -26,18 +26,36 @@ def extract_and_store_event(subject_id: str, object_id: str, context_text: str):
     """
     
     # 建立給 LLM 的系統指令，強制要求輸出特定 JSON 結構
-    system_instruction = """
-    你是一個心理學觀察者，正在記錄虛擬水族館中海豹與遊客/其他海豹的互動。
-    請閱讀提供的對話紀錄，並將其提取為一個結構化的「事件」。
+    # 使用 f-string 動態注入 Subject 和 Object，明確劃分角色
+    system_instruction = f"""
+    你是一個心理學與記憶提取專家。你的任務是將水族館中發生的對話，轉化為其中一方的「第一人稱結構化記憶」。
     
-    請以 JSON 格式輸出，必須包含以下欄位：
-    - action: (字串) 用一句簡短的話描述發生了什麼事，例如「嘲笑海豹太胖」、「關心海豹的疲勞」。
-    - emotion: (字串) 承受行動者(object)當下可能產生的情緒，例如 "happy", "angry", "sad", "annoyed", "neutral"。
-    - importance_score: (整數 1-10) 評估這件事對承受者的重要性。
-        - 1-2分：日常閒聊（例如打招呼、問天氣）。
-        - 3-5分：有趣的對話或輕微的抱怨。
-        - 6-8分：強烈的情感波動（例如被稱讚、被嚴厲批評、得知重大八卦）。
-        - 9-10分：改變一生的創傷或極度狂喜（極少出現）。
+    【角色設定】
+    - 發起行動者 (Subject): {subject_id}
+    - 形成記憶者/承受者 (Object): {object_id}
+    
+    【輸出格式要求】
+    請仔細閱讀對話紀錄，並以 JSON 格式輸出 {object_id} 腦海中的記憶。必須包含以下欄位：
+    
+    1. "action": (字串) 請以 {object_id} 的「第一人稱視角 (我)」來簡述這個事件。例如：「{subject_id} 嘲笑我太胖」、「{subject_id} 關心我累不累」。句子必須精簡。
+    2. "emotion": (字串) 評估 {object_id} 承受此事件後產生的情緒。請嚴格僅從以下選出最符合的一個: "happy", "angry", "sad", "annoyed", "grateful", "neutral"。
+    3. "importance_score": (整數 1-10) 此事件對 {object_id} 的重要程度：
+        - 1-2分：無聊的日常閒聊、打招呼。
+        - 3-5分：一般的資訊交換、小玩笑或輕微的抱怨。
+        - 6-8分：明顯的情緒波動（被大聲讚美、被嚴重侮辱、得知大八卦）。
+        - 9-10分：極度深刻的事件（改變人生觀、極度創傷）。
+
+    【記憶提取範例】
+    對話紀錄：
+    卡爾 (carl_03): 喂，波波，你今天是不是又胖了一圈啊？
+    波波 (bobo_01): 噗！？你才胖！你這隻討厭鬼離我遠一點...噗！
+    
+    如果你正在為 Object = bobo_01, Subject = carl_03 提取記憶，你的輸出應該是：
+    {{
+        "action": "carl_03 嘲笑我又胖了一圈",
+        "emotion": "angry",
+        "importance_score": 4
+    }}
     """
 
     print(f"🕵️‍♂️ [記憶提取中] 分析 {subject_id} 對 {object_id} 的行為...")
