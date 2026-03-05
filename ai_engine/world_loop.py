@@ -179,12 +179,12 @@ if __name__ == "__main__":
     scheduler = BackgroundScheduler()
 
     # 為了測試方便，我們把時間縮短：
-    # 每 1 分鐘執行一次「世界心跳」(現實中可能是 10 分鐘)
-    scheduler.add_job(world_tick, 'interval', minutes=1)
+    # 每 2.5 分鐘執行一次「世界心跳」
+    scheduler.add_job(world_tick, 'interval', minutes=2.5)
     
-    # 每 5 分鐘執行一次「夜間反思」(現實中可能是每天晚上 12 點)
+    # 每 60 分鐘執行一次「夜間反思」
     # 若要設定特定時間，可用: trigger='cron', hour=0, minute=0
-    scheduler.add_job(night_cycle, 'interval', minutes=5)
+    scheduler.add_job(night_cycle, 'interval', minutes=60)
 
     print("⏳ 世界引擎已啟動！等待排程觸發... (按 Ctrl+C 結束)")
     scheduler.start()
