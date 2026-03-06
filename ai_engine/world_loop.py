@@ -20,34 +20,36 @@ mqtt_client.connect("127.0.0.1", 1883, 60)
 mqtt_client.loop_start()
 
 def evaluate_attendance(seal_data, online_seals_ids):
-    """評估海豹是否要來上班"""
     p = seal_data.get("personality", {"O":50, "C":50, "E":50, "A":50, "N":50})
     state = seal_data.get("state", {})
     social_graph = seal_data.get("social_graph", {})
 
-    # 1. BaseRate: 加入保底機制
-    # 原本是 p.get("C", 50)，現在轉換為 35 + (C * 0.3)
-    # 這樣 C=10 的懶海豹會有 38 分底薪，C=90 的勤勞海豹會有 62 分。
     base_rate = 35 + (p.get("C", 50) * 0.3)
-
-    # 2. MoodFactor (保持不變)
     mood = state.get("mood_value", 0)
     mood_factor = mood * (1 + (p.get("N", 50) / 100.0))
 
-    # 3. SocialPull (保持不變)
     social_pull = 0
     for online_id in online_seals_ids:
         if online_id in social_graph:
             social_pull += (social_graph[online_id] * 0.5)
 
-    # 4. Fatigue (保持不變)
     fatigue = state.get("fatigue", 0)
+    is_online = state.get("is_online", False) # 取得當前狀態
 
-    # 計算總分 (加入一點無聊/隨機驅動力)
+    # 計算基礎意願
     willingness_score = base_rate + mood_factor + social_pull - fatigue
-    random_variance = random.uniform(-10, 15) + (p.get("E", 50) * 0.15) 
     
+    # 💡 修正二：加入狀態慣性 (Status Inertia)
+    if is_online:
+        # 已經在水族館了，給予留下的強大加分 (懶得回家)
+        willingness_score += 25
+    else:
+        # 正在家裡休息，給予繼續躺著的強大扣分 (懶得開機出門)
+        willingness_score -= 15
+
+    random_variance = random.uniform(-10, 15) + (p.get("E", 50) * 0.15)
     final_score = willingness_score + random_variance
+
     return final_score > 50
 
 def world_tick():
@@ -129,9 +131,13 @@ def world_tick():
             }
             mqtt_client.publish("aquarium/seal/status", json.dumps(payload, ensure_ascii=False))
 
-    # --- 更新：Agent 行為觸發邏輯 (支援自言自語與搭話) ---
-    if len(online_seals) > 0:
-        for initiator in online_seals:
+    # 💡 修正一：在此處「重新」撈取真正的線上名單！
+    # 確保剛剛被判定下班的海豹 (is_online 變成 False) 不會混在裡面
+    current_online_seals = list(seals_collection.find({"state.is_online": True}))
+    
+    # 使用更新後的 current_online_seals 來進行社交判定
+    if len(current_online_seals) > 0:
+        for initiator in current_online_seals:
             initiator_id = initiator["seal_id"]
             e_score = initiator.get("personality", {}).get("E", 50)
             
@@ -140,7 +146,7 @@ def world_tick():
             
             if random.random() < chat_probability:
                 
-                potential_targets = [s for s in online_seals if s["seal_id"] != initiator_id]
+                potential_targets = [s for s in current_online_seals if s["seal_id"] != initiator_id]
                 
                 # 2. 決定行為模式：找人 vs 自言自語
                 # 如果沒有其他人在線上，強迫自言自語
