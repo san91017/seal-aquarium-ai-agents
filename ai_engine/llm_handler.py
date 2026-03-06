@@ -97,7 +97,8 @@ def generate_seal_initiation(initiator_id: str, target_id: str) -> str:
         contents="請主動開口說一句話：",
         config=types.GenerateContentConfig(
             system_instruction=initiation_instruction,
-            temperature=0.8,
+            temperature=0.7,
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
     )
     
@@ -150,7 +151,8 @@ def generate_seal_monologue(seal_id: str) -> str:
         contents="請自言自語一句話：",
         config=types.GenerateContentConfig(
             system_instruction=monologue_instruction,
-            temperature=0.7,
+            temperature=0.6,
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
     )
     
@@ -227,7 +229,8 @@ def generate_seal_response(seal_id: str, interlocutor_id: str, user_message: str
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=dynamic_system_instruction,
-            temperature=0.8, # 稍微調高溫度，讓情緒表現更豐富
+            temperature=0.7, # 稍微調高溫度，讓情緒表現更豐富
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         )
     )
     assistant_reply = response.text

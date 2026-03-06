@@ -68,6 +68,7 @@ def extract_and_store_event(subject_id: str, object_id: str, context_text: str):
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.2, # 溫度調低，我們需要穩定的 JSON 輸出
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
                 response_mime_type="application/json", # 強制回傳 JSON
             )
         )
